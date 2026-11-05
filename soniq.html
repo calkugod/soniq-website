@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soniq — Music Listening & Uploading</title>
+<style>
+  :root{
+    --bg:#0d0d14; --panel:#171722; --panel2:#1f1f2e; --accent:#7c5cff;
+    --accent2:#00e5c3; --text:#f0f0f5; --muted:#9a9aad; --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; font-family:'Segoe UI',Arial,sans-serif;}
+  body{background:var(--bg); color:var(--text);}
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 24px; background:var(--panel); position:sticky; top:0; z-index:50;
+    border-bottom:1px solid #2a2a3d;
+  }
+  .logo{font-size:1.6rem; font-weight:800; letter-spacing:1px;}
+  .logo span{color:var(--accent);}
+  .top-actions{display:flex; gap:10px; align-items:center;}
+  .top-actions button{
+    background:var(--accent); color:#fff; border:none; padding:9px 18px;
+    border-radius:20px; cursor:pointer; font-weight:600;
+  }
+  .top-actions button.ghost{background:transparent; border:1px solid var(--accent); color:var(--accent);}
+  nav{
+    display:flex; gap:6px; padding:10px 20px; background:var(--panel);
+    position:sticky; top:64px; z-index:49; border-bottom:1px solid #2a2a3d;
+    overflow-x:auto;
+  }
+  nav button{
+    background:none; border:none; color:var(--muted); padding:10px 20px;
+    font-size:1rem; cursor:pointer; border-radius:10px; white-space:nowrap;
+  }
+  nav button.active{background:var(--accent); color:#fff;}
+  main{padding:24px; max-width:1200px; margin:auto; padding-bottom:120px;}
+  .tab{display:none;}
+  .tab.active{display:block; animation:fade .3s;}
+  @keyframes fade{from{opacity:0; transform:translateY(8px);} to{opacity:1;}}
+  h1{margin-bottom:6px;}
+  h2{margin:22px 0 12px; color:var(--accent2);}
+  .sub{color:var(--muted); margin-bottom:18px;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px;}
+  .card{
+    background:var(--panel2); border-radius:var(--radius); padding:14px; cursor:pointer;
+    transition:transform .2s, background .2s;
+  }
+  .card:hover{transform:translateY(-4px); background:#282840;}
+  .cover{
+    width:100%; aspect-ratio:1; border-radius:10px; object-fit:cover; background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:flex; align-items:center; justify-content:center; font-size:2.4rem; color:#fff;
+  }
+  .card img.cover{object-fit:cover;}
+  .card h4{margin:10px 0 4px; font-size:.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .card p{color:var(--muted); font-size:.82rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .card .meta{display:flex; justify-content:space-between; margin-top:8px; font-size:.8rem; color:var(--muted);}
+  .heart{cursor:pointer; font-size:1.1rem; color:var(--muted);}
+  .heart.loved{color:#ff4d6d;}
+
+  /* Player */
+  .player{
+    position:fixed; bottom:0; left:0; right:0; background:var(--panel);
+    border-top:1px solid #2a2a3d; padding:12px 24px; display:flex; align-items:center;
+    gap:18px; z-index:60; flex-wrap:wrap;
+  }
+  .player .info{min-width:180px;}
+  .player .info b{display:block;}
+  .player .info span{color:var(--muted); font-size:.85rem;}
+  .player button{
+    background:var(--accent); border:none; color:#fff; width:44px; height:44px;
+    border-radius:50%; cursor:pointer; font-size:1.1rem;
+  }
+  .player button.small{width:36px; height:36px; background:var(--panel2); font-size:.95rem;}
+  input[type=range]{flex:1; accent-color:var(--accent); min-width:120px;}
+
+  /* Upload */
+  .upload-box{
+    border:2px dashed var(--accent); border-radius:var(--radius); padding:30px;
+    text-align:center; background:var(--panel2); margin-bottom:20px;
+  }
+  .upload-box.dragover{border-color:var(--accent2); background:#243038;}
+  .btn{
+    background:var(--accent); color:#fff; border:none; padding:10px 22px;
+    border-radius:8px; cursor:pointer; font-weight:600; margin-top:10px;
+  }
+  .btn.alt{background:var(--accent2); color:#06231f;}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+  form .field{margin-bottom:12px;}
+  form label{display:block; color:var(--muted); margin-bottom:5px; font-size:.9rem;}
+  input[type=text], input[type=email], input[type=password], select, textarea{
+    width:100%; max-width:420px; padding:11px 14px; border-radius:8px;
+    border:1px solid #33334a; background:var(--panel2); color:var(--text);
+  }
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:30px;}
+  @media(max-width:800px){.two-col{grid-template-columns:1fr;}}
+
+  .chip{
+    display:inline-block; padding:8px 16px; margin:4px; border-radius:20px;
+    background:var(--panel2); cursor:pointer; border:1px solid #33334a;
+  }
+  .chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .list-row{
+    display:flex; align-items:center; gap:14px; background:var(--panel2);
+    padding:10px 14px; border-radius:10px; margin-bottom:8px;
+  }
+  .list-row .num{color:var(--muted); width:26px; text-align:right; font-weight:700;}
+  .list-row .grow{flex:1;}
+  .tag{font-size:.75rem; color:var(--accent2); background:#0c2c28; padding:3px 10px; border-radius:12px;}
+  .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:100;}
+  .modal-bg.open{display:flex;}
+  .modal{background:var(--panel); padding:24px; border-radius:var(--radius); width:min(420px,92vw);}
+  .avatar{
+    width:88px; height:88px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:flex; align-items:center; justify-content:center; font-size:2rem; font-weight:800; margin-bottom:14px;
+  }
+  .stat-row{display:flex; gap:16px; flex-wrap:wrap; margin-top:10px;}
+  .stat{background:var(--panel2); padding:16px 22px; border-radius:12px; text-align:center; flex:1; min-width:120px;}
+  .stat b{font-size:1.4rem; color:var(--accent2); display:block;}
+  .empty{color:var(--muted); padding:30px; text-align:center; background:var(--panel2); border-radius:var(--radius);}
+  #up-status{margin-top:10px; font-size:.9rem; color:var(--muted);}
+  #up-progress{width:100%; max-width:420px; margin-top:8px; display:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Soni<span>Q</span> ♪</div>
+  <div class="top-actions">
+    <button class="ghost" onclick="switchTab('account')">Account</button>
+    <button onclick="switchTab('upload')">+ Upload</button>
+  </div>
+</header>
+
+<nav>
+  <button class="active" data-tab="home"     onclick="switchTab('home')">🏠 Home</button>
+  <button data-tab="discover"  onclick="switchTab('discover')">🧭 Discover</button>
+  <button data-tab="library"   onclick="switchTab('library')">📚 My Library</button>
+  <button data-tab="search"    onclick="switchTab('search')">🔍 Search</button>
+  <button data-tab="chart"     onclick="switchTab('chart')">📈 Charts</button>
+  <button data-tab="account"   onclick="switchTab('account')">👤 Account</button>
+</nav>
+
+<main>
+  <!-- ============ HOME ============ -->
+  <section class="tab active" id="tab-home">
+    <h1>Good day, <span id="home-username">Listener</span> 👋</h1>
+    <p class="sub">Here's what's playing around SoniQ today.</p>
+
+    <h2>🎵 Recommended For You</h2>
+    <div class="grid" id="home-recommended"></div>
+
+    <h2>🆕 Recently Added</h2>
+    <div class="grid" id="home-recent"></div>
+
+    <h2>⬆️ Uploaded By You</h2>
+    <div id="home-uploads"></div>
+  </section>
+
+  <!-- ============ DISCOVER ============ -->
+  <section class="tab" id="tab-discover">
+    <h1>Discover</h1>
+    <p class="sub">Explore music across every category.</p>
+    <div id="genre-chips"></div>
+    <h2 id="discover-title">All Music</h2>
+    <div class="grid" id="discover-grid"></div>
+  </section>
+
+  <!-- ============ LIBRARY ============ -->
+  <section class="tab" id="tab-library">
+    <h1>My Library</h1>
+    <p class="sub">Your saved songs, playlists, and favorite artists.</p>
+
+    <h2>❤️ Liked Songs</h2>
+    <div id="lib-liked"></div>
+
+    <h2>🎤 Favorite Artists</h2>
+    <div class="grid" id="lib-artists"></div>
+
+    <h2>📝 Your Playlists</h2>
+    <button class="btn" onclick="openPlaylistModal()">+ Create Playlist</button>
+    <div class="grid" id="lib-playlists" style="margin-top:14px;"></div>
+  </section>
+
+  <!-- ============ SEARCH ============ -->
+  <section class="tab" id="tab-search">
+    <h1>Search</h1>
+    <p class="sub">Find songs, artists, and albums.</p>
+    <form onsubmit="doSearch(event)">
+      <input type="text" id="search-input" placeholder="Search songs, artists, albums..." style="max-width:520px;">
+      <button class="btn" type="submit">Search</button>
+    </form>
+    <div id="search-results" style="margin-top:24px;"></div>
+  </section>
+
+  <!-- ============ CHARTS ============ -->
+  <section class="tab" id="tab-chart">
+    <h1>Top Charts</h1>
+    <p class="sub">The hottest trending songs and artists right now.</p>
+    <h2>🔥 Top Trending Songs</h2>
+    <div id="chart-songs"></div>
+    <h2>⭐ Top Artists</h2>
+    <div class="grid" id="chart-artists"></div>
+  </section>
+
+  <!-- ============ ACCOUNT ============ -->
+  <section class="tab" id="tab-account">
+    <h1>My Account</h1>
+    <div class="two-col" style="margin-top:16px;">
+      <div>
+        <div class="avatar" id="acct-avatar">U</div>
+        <form onsubmit="saveAccount(event)">
+          <div class="field"><label>Display Name</label>
+            <input type="text" id="acct-name" required></div>
+          <div class="field"><label>Email</label>
+            <input type="email" id="acct-email"></div>
+          <div class="field"><label>Favorite Genre</label>
+            <select id="acct-genre"></select></div>
+          <div class="field"><label>Bio</label>
+            <textarea id="acct-bio" rows="3" placeholder="Tell listeners about yourself..."></textarea></div>
+          <div class="field"><label>Theme</label>
+            <select id="acct-theme" onchange="setTheme(this.value)">
+              <option value="dark">Dark</option>
+              <option value="midnight">Midnight Blue</option>
+              <option value="crimson">Crimson</option>
+              <option value="light">Light</option>
+            </select></div>
+          <button class="btn" type="submit">Save Changes</button>
+        </form>
+      </div>
+      <div>
+        <h2 style="margin-top:0;">Account Details</h2>
+        <div class="stat-row">
+          <div class="stat"><b id="stat-songs">0</b>Songs Uploaded</div>
+          <div class="stat"><b id="stat-liked">0</b>Liked Songs</div>
+          <div class="stat"><b id="stat-playlists">0</b>Playlists</div>
+        </div>
+        <div class="list-row" style="margin-top:18px;">
+          <span>🆔</span><div class="grow"><b>Member since</b><br><span id="acct-since" style="color:var(--muted)">—</span></div>
+        </div>
+        <div class="list-row">
+          <span>🎧</span><div class="grow"><b>Plan</b><br><span style="color:var(--muted)">Free Listener</span></div>
+        </div>
+        <div style="margin-top:18px;">
+          <button class="btn alt" onclick="resetData()">Reset All Data</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ UPLOAD ============ -->
+  <section class="tab" id="tab-upload">
+    <h1>Upload Music</h1>
+    <p class="sub">Share your sound with the SoniQ community — any audio file, any size.</p>
+    <div class="upload-box" id="drop-zone">
+      <div style="font-size:2.5rem;">🎶</div>
+      <p>Drag & drop an audio file here, or choose below</p>
+      <input type="file" id="file-input" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.opus">
+      <div id="up-status"></div>
+      <progress id="up-progress" value="0" max="100" style="width:100%;max-width:420px;display:none;"></progress>
+      <form onsubmit="uploadSong(event)" style="margin-top:16px;">
+        <div class="field"><label>Song Title</label><input type="text" id="up-title" required></div>
+        <div class="field"><label>Artist Name</label><input type="text" id="up-artist" required></div>
+        <div class="field"><label>Album (optional)</label><input type="text" id="up-album"></div>
+        <div class="field"><label>Category</label>
+          <select id="up-genre"></select></div>
+        <button class="btn" type="submit" id="up-btn">Publish Song</button>
+      </form>
+    </div>
+    <h2>Your Uploads</h2>
+    <div id="upload-mylist"></div>
+  </section>
+</main>
+
+<!-- Player -->
+<div class="player" id="player" style="display:none;">
+  <div class="info"><b id="pl-title">—</b><span id="pl-artist">—</span></div>
+  <button class="small" onclick="prevSong()">⏮</button>
+  <button id="pl-play" onclick="togglePlay()">▶</button>
+  <button class="small" onclick="nextSong()">⏭</button>
+  <input type="range" id="pl-progress" value="0" max="100" oninput="seek(this.value)">
+  <button class="small heart" id="pl-heart" onclick="loveCurrent()">♡</button>
+</div>
+<audio id="audio"></audio>
+
+<!-- Playlist modal -->
+<div class="modal-bg" id="pl-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h2>Create Playlist</h2>
+    <form onsubmit="createPlaylist(event)">
+      <div class="field"><label>Playlist Name</label><input type="text" id="pl-name" required></div>
+      <div class="field"><label>Description</label><input type="text" id="pl-desc" placeholder="Optional"></div>
+      <button class="btn" type="submit">Create</button>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   SoniQ — merged application JavaScript
+   Everything is wired: tabs, cards, player, upload, playlists,
+   search, charts, account, themes, and persistence.
+   ================================================================ */
+
+/* ---------- Data store (localStorage) ---------- */
+const GENRES = ["Pop","Rock","Hip-Hop","R&B","Electronic","Phonk","Gospel","Sad Songs",
+                "Jazz","Classical","Afrobeats","Lo-Fi","Country","Reggae","Dancehall",
+                "Latin","Folk","Podcast"];
+const DEMO = [
+  {id:1, title:"Neon Skyline",    artist:"Ava Volt",       album:"City Lights",  genre:"Electronic", plays:98210,  seed:11},
+  {id:2, title:"Midnight Drive",  artist:"Kaze",           album:"Nightcall",    genre:"Phonk",      plays:76450,  seed:22},
+  {id:3, title:"Golden Hour",     artist:"Luna Ray",       album:"Sunset",       genre:"Pop",        plays:154300, seed:33},
+  {id:4, title:"Thunder Heart",   artist:"Iron Sage",      album:"Wildfire",     genre:"Rock",       plays:64200,  seed:44},
+  {id:5, title:"Soul Whisper",    artist:"Nia Blue",       album:"Velvet",       genre:"R&B",        plays:88700,  seed:55},
+  {id:6, title:"Afro Pulse",      artist:"DJ Kwame",       album:"Lagos Nights", genre:"Afrobeats",  plays:120500, seed:66},
+  {id:7, title:"Rain on Keys",    artist:"Theo Miles",     album:"Blue Room",    genre:"Jazz",       plays:43100,  seed:77},
+  {id:8, title:"Starlight Waltz", artist:"Orchestra Nova", album:"Eternity",     genre:"Classical",  plays:31200,  seed:88},
+  {id:9, title:"Sunday Morning",  artist:"Grace Choir",    album:"Praise",       genre:"Gospel",     plays:55900,  seed:91},
+  {id:10,title:"Empty Rooms",     artist:"Kaze",           album:"Nightcall",    genre:"Sad Songs",  plays:66100,  seed:12},
+];
+const load = k => JSON.parse(localStorage.getItem("soniq_"+k) || "null");
+const save = (k,v) => localStorage.setItem("soniq_"+k, JSON.stringify(v));
+
+let songs = load("songs") || DEMO.slice();
+let liked = load("liked") || [];
+let playlists = load("playlists") || [];
+let favArtists = load("favArtists") || [];
+let account = load("account") || {name:"Listener", email:"", genre:"Pop", bio:"", theme:"dark", since:new Date().toLocaleDateString()};
+let discoverGenre = "All";
+let pendingFile = null;
+
+save("songs", songs);
+const coverURL = seed => `https://picsum.photos/seed/sq${encodeURIComponent(seed)}/300/300`;
+const fmt = n => n>=1e6 ? (n/1e6).toFixed(1)+"M" : n>=1e3 ? (n/1e3).toFixed(1)+"K" : n;
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  .replace(/'/g,"&#39;").replace(/"/g,"&quot;"); }
+const byId = id => document.getElementById(id);
+
+/* ---------- Genre dropdowns ---------- */
+function fillGenreSelects(){
+  const opts = GENRES.map(g=>`<option>${esc(g)}</option>`).join("");
+  byId("up-genre").innerHTML = opts;
+  byId("acct-genre").innerHTML = opts;
+}
+
+/* ---------- IndexedDB for uploaded audio files (any size) ---------- */
+let db;
+function initDB(){
+  return new Promise((resolve,reject)=>{
+    const req = indexedDB.open("soniqDB", 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore("files");
+    req.onsuccess = e => {
+      db = e.target.result;
+      if(navigator.storage && navigator.storage.persist)
+        navigator.storage.persist().catch(()=>{});
+      if(navigator.storage && navigator.storage.estimate)
+        navigator.storage.estimate().then(({quota,usage})=>
+          console.log(`SoniQ storage: ${(usage/1048576).toFixed(0)} MB of ${(quota/1073741824).toFixed(1)} GB used`)
+        ).catch(()=>{});
+      resolve(db);
+    };
+    req.onerror = reject;
+  });
+}
+function dbPut(id, blob){
+  return new Promise((res,rej)=>{
+    const tx = db.transaction("files","readwrite");
+    tx.objectStore("files").put(blob, String(id));
+    tx.oncomplete = res; tx.onerror = rej;
+  });
+}
+function dbGet(id){
+  return new Promise(res=>{
+    const tx = db.transaction("files","readonly");
+    const req = tx.objectStore("files").get(String(id));
+    req.onsuccess = ()=> res(req.result || null);
+    req.onerror = ()=> res(null);
+  });
+}
+
+/* ---------- Tabs ---------- */
+function switchTab(name){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  byId("tab-"+name).classList.add("active");
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===name));
+  if(name==="home") renderHome();
+  if(name==="discover") renderDiscover();
+  if(name==="library") renderLibrary();
+  if(name==="chart") renderCharts();
+  if(name==="account") renderAccount();
+  if(name==="upload") renderUploadList();
+}
+
+/* ---------- Card rendering ---------- */
+function songCard(s){
+  const isLiked = liked.includes(s.id);
+  return `<div class="card" data-song="${s.id}">
+    <img class="cover" src="${coverURL(s.seed)}" alt="">
+    <h4>${esc(s.title)}</h4><p>${esc(s.artist)} • ${esc(s.album||s.genre)}</p>
+    <div class="meta"><span>${fmt(s.plays||0)} plays</span>
+    <span class="heart ${isLiked?"loved":""}" data-like="${s.id}">${isLiked?"❤":"♡"}</span></div>
+  </div>`;
+}
+function artistCard(name){
+  const count = songs.filter(s=>s.artist===name).length;
+  const total = songs.filter(s=>s.artist===name).reduce((a,s)=>a+(s.plays||0),0);
+  return `<div class="card" data-artist="${esc(name)}">
+    <img class="cover" src="${coverURL(name)}" alt="">
+    <h4>${esc(name)}</h4><p>${count} song${count>1?"s":""} • ${fmt(total)} plays</p>
+    <div class="meta"><span class="tag">Artist</span>
+    <span class="heart" data-favartist="${esc(name)}">＋</span></div>
+  </div>`;
+}
+function albumCard(a){
+  return `<div class="card" data-album="${esc(a)}">
+    <img class="cover" src="${coverURL(a)}" alt=""><h4>${esc(a)}</h4>
+    <p>${songs.filter(x=>x.album===a).length} songs</p></div>`;
+}
+
+/* ---------- Global click delegation (cards, hearts, chips, rows) ---------- */
+document.addEventListener("click", e=>{
+  const like = e.target.closest("[data-like]");
+  if(like){ e.stopPropagation(); toggleLike(+like.dataset.like); return; }
+  const fav = e.target.closest("[data-favartist]");
+  if(fav){ e.stopPropagation(); toggleFavArtist(fav.dataset.favartist); return; }
+  const song = e.target.closest("[data-song]");
+  if(song){ playSong(+song.dataset.song); return; }
+  const artist = e.target.closest("[data-artist]");
+  if(artist){ playArtist(artist.dataset.artist); return; }
+  const album = e.target.closest("[data-album]");
+  if(album){ playAlbum(album.dataset.album); return; }
+  const chip = e.target.closest("[data-genre]");
+  if(chip){ filterGenre(chip.dataset.genre); return; }
+  const addpl = e.target.closest("[data-addpl]");
+  if(addpl){ addToPlaylist(+addpl.dataset.addpl, +addpl.dataset.song); return; }
+  const rmpl = e.target.closest("[data-rmpl]");
+  if(rmpl){ removeFromPlaylist(+rmpl.dataset.rmpl, +rmpl.dataset.song); return; }
+  const del = e.target.closest("[data-deletesong]");
+  if(del){ deleteSong(+del.dataset.deletesong); return; }
+  const rowplay = e.target.closest("[data-rowplay]");
+  if(rowplay){ playSong(+rowplay.dataset.rowplay); return; }
+});
+
+/* ---------- Home ---------- */
+function renderHome(){
+  byId("home-username").textContent = account.name;
+  const rec = [...songs].sort((a,b)=>(b.plays||0)-(a.plays||0)).slice(0,6);
+  const recent = [...songs].slice(-6).reverse();
+  byId("home-recommended").innerHTML = rec.map(songCard).join("");
+  byId("home-recent").innerHTML = recent.map(songCard).join("");
+  const mine = songs.filter(s=>s.uploaded);
+  byId("home-uploads").innerHTML = mine.length
+    ? mine.map(songCard).join('') : '<div class="empty">You haven\'t uploaded anything yet. Head to the Upload tab!</div>';
+}
+
+/* ---------- Discover ---------- */
+function renderDiscover(){
+  byId("genre-chips").innerHTML =
+    ["All",...GENRES].map(g=>`<span class="chip ${g===discoverGenre?"active":""}" data-genre="${esc(g)}">${esc(g)}</span>`).join("");
+  const list = discoverGenre==="All" ? songs : songs.filter(s=>s.genre===discoverGenre);
+  byId("discover-title").textContent = discoverGenre==="All" ? "All Music" : discoverGenre;
+  byId("discover-grid").innerHTML = list.length
+    ? list.map(songCard).join("") : '<div class="empty">No songs in this category yet — upload one!</div>';
+}
+function filterGenre(g){ discoverGenre=g; renderDiscover(); }
+
+/* ---------- Library ---------- */
+function renderLibrary(){
+  const likedSongs = songs.filter(s=>liked.includes(s.id));
+  byId("lib-liked").innerHTML = likedSongs.length
+    ? likedSongs.map(s=>`<div class="list-row"><div class="num">❤</div>
+        <img src="${coverURL(s.seed)}" width="48" height="48" style="border-radius:8px" alt="">
+        <div class="grow"><b>${esc(s.title)}</b><br><span style="color:var(--muted)">${esc(s.artist)}</span></div>
+        <button class="btn" style="margin:0" data-rowplay="${s.id}">▶ Play</button></div>`).join("")
+    : '<div class="empty">No liked songs yet — tap ♡ on any track.</div>';
+  byId("lib-artists").innerHTML = favArtists.length
+    ? favArtists.map(artistCard).join("") : '<div class="empty">No favorite artists yet — tap ＋ on any artist card.</div>';
+  byId("lib-playlists").innerHTML = playlists.length
+    ? playlists.map((p,i)=>`<div class="card" data-openpl="${i}">
+        <div class="cover">🎧</div><h4>${esc(p.name)}</h4><p>${p.songs.length} songs • ${esc(p.desc||"")}</p></div>`).join("")
+    : '<div class="empty">No playlists yet — create one!</div>';
+}
+function toggleLike(id){
+  liked = liked.includes(id) ? liked.filter(x=>x!==id) : [...liked, id];
+  save("liked", liked); refreshCurrent();
+  if(byId("tab-home").classList.contains("active")) renderHome();
+  if(byId("tab-library").classList.contains("active")) renderLibrary();
+  if(byId("tab-discover").classList.contains("active")) renderDiscover();
+}
+function toggleFavArtist(name){
+  favArtists = favArtists.includes(name) ? favArtists.filter(x=>x!==name) : [...favArtists, name];
+  save("favArtists", favArtists); renderLibrary();
+}
+
+/* Playlists */
+function openPlaylistModal(){ byId("pl-modal").classList.add("open"); byId("pl-name").focus(); }
+function createPlaylist(e){
+  e.preventDefault();
+  playlists.push({name:byId("pl-name").value, desc:byId("pl-desc").value, songs:[]});
+  save("playlists", playlists); byId("pl-modal").classList.remove("open"); e.target.reset(); renderLibrary();
+}
+function openPlaylist(i){
+  const p = playlists[i]; if(!p){ renderLibrary(); return; }
+  const list = p.songs.map(id=>songs.find(s=>s.id===id)).filter(Boolean);
+  const others = songs.filter(s=>!p.songs.includes(s.id));
+  byId("lib-playlists").innerHTML = `
+    <div style="grid-column:1/-1;">
+      <button class="btn" style="background:var(--panel2)" onclick="renderLibrary()">← Back</button>
+      <h2 style="margin-top:14px;">🎧 ${esc(p.name)}</h2>
+      <p class="sub">${esc(p.desc||"")}</p>
+      ${list.length? list.map(s=>`<div class="list-row"><div class="num">${p.songs.indexOf(s.id)+1}</div>
+        <div class="grow"><b>${esc(s.title)}</b> — ${esc(s.artist)}</div>
+        <button class="btn" style="margin:0" data-rowplay="${s.id}">▶</button>
+        <button class="btn" style="margin:0;background:#a33" data-rmpl="${i}" data-song="${s.id}">✕</button></div>`).join("")
+      : '<div class="empty">Playlist is empty. Add songs below.</div>'}
+      <h2>Add Songs</h2>
+      ${others.map(s=>`<div class="list-row"><div class="grow"><b>${esc(s.title)}</b> — ${esc(s.artist)}</div>
+        <button class="btn" style="margin:0" data-addpl="${i}" data-song="${s.id}">＋ Add</button></div>`).join("")}
+    </div>`;
+}
+document.addEventListener("click", e=>{
+  const open = e.target.closest("[data-openpl]");
+  if(open) openPlaylist(+open.dataset.openpl);
+});
+function addToPlaylist(i,id){ playlists[i].songs.push(id); save("playlists",playlists); openPlaylist(i); }
+function removeFromPlaylist(i,id){ playlists[i].songs=playlists[i].songs.filter(x=>x!==id); save("playlists",playlists); openPlaylist(i); }
+function deleteSong(id){
+  const s = songs.find(x=>x.id===id); if(!s) return;
+  if(!confirm(`Delete "${s.title}" from SoniQ?`)) return;
+  songs = songs.filter(x=>x.id!==id); save("songs", songs);
+  liked = liked.filter(x=>x!==id); save("liked", liked);
+  playlists.forEach(p=>p.songs=p.songs.filter(x=>x!==id)); save("playlists",playlists);
+  renderUploadList(); renderHome(); renderDiscover(); renderCharts(); renderAccount();
+}
+
+/* ---------- Search ---------- */
+function doSearch(e){
+  e.preventDefault();
+  const q = byId("search-input").value.trim().toLowerCase();
+  if(!q) return;
+  const bySong = songs.filter(s=>s.title.toLowerCase().includes(q));
+  const byArtist = [...new Set(songs.filter(s=>s.artist.toLowerCase().includes(q)).map(s=>s.artist))];
+  const byAlbum = [...new Set(songs.filter(s=>(s.album||"").toLowerCase().includes(q)).map(s=>s.album))];
+  byId("search-results").innerHTML = `
+    ${byArtist.length?`<h2>🎤 Artists</h2><div class="grid">${byArtist.map(artistCard).join("")}</div>`:""}
+    ${bySong.length?`<h2>🎵 Songs</h2><div class="grid">${bySong.map(songCard).join("")}</div>`:""}
+    ${byAlbum.length?`<h2>💿 Albums</h2><div class="grid">${byAlbum.map(albumCard).join("")}</div>`:""}
+    ${!bySong.length&&!byArtist.length&&!byAlbum.length?`<div class="empty">No results for "${esc(q)}".</div>`:""}`;
+}
+
+/* ---------- Charts ---------- */
+function renderCharts(){
+  const top = [...songs].sort((a,b)=>(b.plays||0)-(a.plays||0)).slice(0,10);
+  byId("chart-songs").innerHTML = top.map((s,i)=>`
+    <div class="list-row"><div class="num">${i+1}</div>
+    <img src="${coverURL(s.seed)}" width="48" height="48" style="border-radius:8px" alt="">
+    <div class="grow"><b>${esc(s.title)}</b><br><span style="color:var(--muted)">${esc(s.artist)} • ${fmt(s.plays||0)} plays</span></div>
+    <span class="tag">${esc(s.genre)}</span>
+    <button class="btn" style="margin:0" data-rowplay="${s.id}">▶</button></div>`).join("");
+  const artists = {};
+  songs.forEach(s=>{ artists[s.artist]=(artists[s.artist]||0)+(s.plays||0); });
+  const topA = Object.entries(artists).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  byId("chart-artists").innerHTML =
+    topA.map(([n,p])=>`<div class="card" data-artist="${esc(n)}">
+      <img class="cover" src="${coverURL(n)}" alt=""><h4>${esc(n)}</h4><p>${fmt(p)} total plays</p></div>`).join("");
+}
+
+/* ---------- Upload (any audio file, any size) ---------- */
+const fileInput = byId("file-input");
+const statusEl = byId("up-status");
+const progEl = byId("up-progress");
+const dropZone = byId("drop-zone");
+
+fileInput.addEventListener("change", function(){ handleFile(this.files[0]); });
+["dragover","dragenter"].forEach(ev=>dropZone.addEventListener(ev, e=>{
+  e.preventDefault(); dropZone.classList.add("dragover");
+}));
+["dragleave","drop"].forEach(ev=>dropZone.addEventListener(ev, e=>{
+  e.preventDefault(); dropZone.classList.remove("dragover");
+}));
+dropZone.addEventListener("drop", e=>{
+  const f = e.dataTransfer.files[0];
+  if(f){ try{ fileInput.files = e.dataTransfer.files; }catch(_){} handleFile(f); }
+});
+
+function handleFile(f){
+  if(!f) return;
+  if(!f.type.startsWith("audio") && !/\.(mp3|wav|ogg|m4a|flac|aac|opus|wma|aiff)$/i.test(f.name)){
+    statusEl.innerHTML = '<span style="color:#ff6b6b">⚠ Not an audio file.</span>';
+    pendingFile = null; return;
+  }
+  pendingFile = f;
+  statusEl.innerHTML = `<span style="color:var(--accent2)">✔ ${esc(f.name)} — ${(f.size/1048576).toFixed(1)} MB ready</span>`;
+  if(!byId("up-title").value) byId("up-title").value = f.name.replace(/\.[^.]+$/,"");
+}
+
+async function uploadSong(e){
+  e.preventDefault();
+  if(!pendingFile){
+    statusEl.innerHTML = '<span style="color:#ff6b6b">⚠ Please choose an audio file first.</span>';
+    return;
+  }
+  const btn = byId("up-btn");
+  btn.disabled = true; btn.textContent = "Publishing...";
+  progEl.style.display = "block"; progEl.value = 10;
+
+  const id = Date.now();
+  const meta = {
+    id, title: byId("up-title").value, artist: byId("up-artist").value,
+    album: byId("up-album").value, genre: byId("up-genre").value, plays: 0,
+    seed: Math.floor(Math.random()*999), uploaded: true, uploader: account.name
+  };
+  try {
+    await dbPut(id, pendingFile);
+    meta.hasFile = true;
+    progEl.value = 100;
+    statusEl.innerHTML = '<span style="color:var(--accent2)">🎵 Song published — visible to all SoniQ users!</span>';
+  } catch(err){
+    meta.hasFile = false;
+    statusEl.innerHTML = '<span style="color:#ffb45c">⚠ Device storage is full — song published, but audio couldn\'t be saved. Free up space and re-upload for full playback.</span>';
+  }
+  songs.push(meta);
+  save("songs", songs);
+  e.target.reset(); fileInput.value = ""; pendingFile = null;
+  renderUploadList(); renderHome(); renderDiscover(); renderCharts();
+  btn.disabled = false; btn.textContent = "Publish Song";
+  setTimeout(()=>{ progEl.style.display="none"; progEl.value=0; }, 1500);
+}
+function renderUploadList(){
+  const mine = songs.filter(s=>s.uploaded);
+  byId("upload-mylist").innerHTML = mine.length
+    ? mine.map(s=>`<div class="list-row">
+        <img src="${coverURL(s.seed)}" width="48" height="48" style="border-radius:8px" alt="">
+        <div class="grow"><b>${esc(s.title)}</b><br><span style="color:var(--muted)">${esc(s.artist)} • ${esc(s.genre)}</span></div>
+        <button class="btn" style="margin:0" data-rowplay="${s.id}">▶</button>
+        <button class="btn" style="margin:0;background:#a33" data-deletesong="${s.id}">🗑</button></div>`).join("")
+    : '<div class="empty">No uploads yet.</div>';
+}
+
+/* ---------- Player ---------- */
+let queue = [], qi = 0, playing = false;
+const audio = byId("audio");
+
+async function playSong(id){
+  const target = songs.find(x=>x.id===id);
+  if(!target) return;
+  queue = songs.filter(s=>s.genre===target.genre);
+  if(!queue.some(s=>s.id===id)) queue = songs.slice();
+  qi = Math.max(0, queue.findIndex(s=>s.id===id));
+  await loadTrack();
+}
+function playArtist(name){
+  queue = songs.filter(s=>s.artist===name);
+  if(!queue.length) return;
+  qi = 0; loadTrack();
+}
+function playAlbum(name){
+  queue = songs.filter(s=>s.album===name);
+  if(!queue.length) return;
+  qi = 0; loadTrack();
+}
+async function loadTrack(){
+  const s = queue[qi]; if(!s) return;
+  byId("player").style.display = "flex";
+  byId("pl-title").textContent = s.title;
+  byId("pl-artist").textContent = s.artist+" • "+(s.album||s.genre);
+  audio.pause();
+  if(s.hasFile){
+    const blob = await dbGet(s.id);
+    audio.src = blob ? URL.createObjectURL(blob) : demoSrc(s);
+  } else {
+    audio.src = demoSrc(s);
+  }
+  s.plays=(s.plays||0)+1; save("songs",songs); refreshCurrent();
+  audio.play().catch(()=>{});
+}
+const demoSrc = s => "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-"+(1+((s.seed||0)%9))+".mp3";
+function togglePlay(){
+  if(!queue.length){ if(songs.length) playSong(songs[0].id); return; }
+  playing ? audio.pause() : audio.play();
+}
+audio.onplay  = ()=>{ playing=true; byId("pl-play").textContent="⏸"; };
+audio.onpause = ()=>{ playing=false; byId("pl-play").textContent="▶"; };
+audio.ontimeupdate = ()=>{ byId("pl-progress").value = audio.duration ? (audio.currentTime/audio.duration*100) : 0; };
+audio.onended = nextSong;
+function nextSong(){ if(!queue.length) return; qi=(qi+1)%queue.length; loadTrack(); }
+function prevSong(){ if(!queue.length) return; qi=(qi-1+queue.length)%queue.length; loadTrack(); }
+function seek(v){ if(audio.duration) audio.currentTime = v/100*audio.duration; }
+function loveCurrent(){ const s=queue[qi]; if(s) toggleLike(s.id); }
+function refreshCurrent(){
+  const s = queue[qi]; if(!s) return;
+  const h = byId("pl-heart");
+  h.textContent = liked.includes(s.id) ? "❤" : "♡";
+  h.classList.toggle("loved", liked.includes(s.id));
+}
+
+/* ---------- Account ---------- */
+function renderAccount(){
+  byId("acct-name").value = account.name;
+  byId("acct-email").value = account.email;
+  byId("acct-genre").value = account.genre;
+  byId("acct-bio").value = account.bio;
+  byId("acct-theme").value = account.theme;
+  byId("acct-avatar").textContent = (account.name[0]||"U").toUpperCase();
+  byId("acct-since").textContent = account.since;
+  byId("stat-songs").textContent = songs.filter(s=>s.uploaded).length;
+  byId("stat-liked").textContent = liked.length;
+  byId("stat-playlists").textContent = playlists.length;
+}
+function saveAccount(e){
+  e.preventDefault();
+  account = {name:byId("acct-name").value, email:byId("acct-email").value,
+             genre:byId("acct-genre").value, bio:byId("acct-bio").value,
+             theme:byId("acct-theme").value, since:account.since};
+  save("account", account); renderAccount(); renderHome(); alert("✅ Account saved!");
+}
+function setTheme(t){
+  const themes = {
+    dark:{}, midnight:{"--bg":"#0a1020","--panel":"#111a30","--panel2":"#1a2540","--accent":"#4d8dff","--accent2":"#5cf2d6"},
+    crimson:{"--bg":"#160a10","--panel":"#22101a","--panel2":"#301824","--accent":"#ff4d6d","--accent2":"#ffb45c"},
+    light:{"--bg":"#f2f2f7","--panel":"#ffffff","--panel2":"#e8e8f0","--accent":"#7c5cff","--accent2":"#00b894","--text":"#1a1a2e","--muted":"#666680"}
+  };
+  for(const [k,v] of Object.entries(themes[t]||{})) document.documentElement.style.setProperty(k,v);
+}
+function resetData(){
+  if(confirm("Erase all SoniQ data (including uploaded files) and reset?")){
+    localStorage.clear();
+    if(db){ const tx=db.transaction("files","readwrite"); tx.objectStore("files").clear(); }
+    location.reload();
+  }
+}
+
+/* ---------- Init ---------- */
+initDB();
+fillGenreSelects();
+setTheme(account.theme);
+renderHome(); renderDiscover(); renderAccount(); renderUploadList();
+</script>
+</body>
+</html>
